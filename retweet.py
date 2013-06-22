@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+#TODO: port getreplies to twitter1.9.4
+
 """A bot that republishes Twitter messages sent to it. Put your settings in settings.py."""
 
 __author__ = 'chris@efinke.com'
@@ -27,8 +29,11 @@ import settings
 
 def retweet(initial_status_id=None):
     DB_PATH = settings.DB_DIR + "%s.sqlite"
-
-    for USER, PASS in settings.ACCOUNTS:
+    i = 0
+    for account in settings.ACCOUNTS:
+	ACCESS_TOKEN, ACCESS_TOKEN_SECRET, CONSUMER_KEY, CONSUMER_SECRET = account
+        USER = settings.USER[i]
+        i += 1
         connection = sqlite3.connect(DB_PATH % USER)
         cursor = connection.cursor()
         
@@ -49,14 +54,16 @@ def retweet(initial_status_id=None):
         for row in rows:
             max_status_id = row[0]
             break
-        
+
         # Create privileged twitter API
-        api = twitter.Api(username=USER, password=PASS)
-        api.SetSource("retweetpy")
+        api = twitter.Twitter(auth=twitter.OAuth(ACCESS_TOKEN, ACCESS_TOKEN_SECRET, CONSUMER_KEY, CONSUMER_SECRET))
+        #api.SetSource("retweetpy")
         
         # Get replies to our account
-        replies = api.GetReplies(since_id=max_status_id)
-    
+	if max_status_id:
+    		replies = api.statuses.mentions_timeline(since_id=max_status_id)
+	else:
+		replies = api.statuses.mentions_timeline()
         if len(replies) > 0:
             # Strip off the leading @username
             cut_reply = re.compile(r"^@%s:?\s*" % USER, re.IGNORECASE)
@@ -66,7 +73,7 @@ def retweet(initial_status_id=None):
                 is_banned = False
                 
                 # Build the new tweet
-                retweeting_from = reply.user.screen_name.lower()
+                retweeting_from = reply['user']['screen_name'].lower()
                 
                 # Check if this user is banned.
                 cursor.execute("""SELECT username FROM bans WHERE username='%s'""" % retweeting_from)
@@ -77,7 +84,7 @@ def retweet(initial_status_id=None):
                     break
                 
                 if not is_banned:
-                    reply_text = clean_reply.sub("@", reply.text)
+                    reply_text = clean_reply.sub("@", reply['text'])
                 
                     if not reply_text.lower().startswith("@%s" % USER.lower()):
                         continue
@@ -105,9 +112,9 @@ def retweet(initial_status_id=None):
             
                     try:
                         # Send it.
-                        api.PostUpdate(new_tweet)
+                        api.statuses.update(status=new_tweet,in_reply_to_status_id=reply['id_str'])
                         
-                        cursor.execute("""INSERT INTO retweets_2 (status_id, timestamp) VALUES ('%s', '%s')""" % (reply.id, datetime.datetime.now()))
+                        cursor.execute("""INSERT INTO retweets_2 (status_id, timestamp) VALUES ('%s', '%s')""" % (reply['id'], datetime.datetime.now()))
                         connection.commit()
                     except Exception, e:
                         print e
@@ -133,7 +140,7 @@ def ban(username, account):
 def setup():
     DB_PATH = settings.DB_DIR + "%s.sqlite"
     
-    for USER, PASS in settings.ACCOUNTS:
+    for USER in settings.USER:
         connection = sqlite3.connect(DB_PATH % USER)
         cursor = connection.cursor()
         
