@@ -60,10 +60,10 @@ def retweet(initial_status_id=None):
         #api.SetSource("retweetpy")
         
         # Get replies to our account
-	if max_status_id:
-    		replies = api.statuses.mentions_timeline(since_id=max_status_id)
-	else:
-		replies = api.statuses.mentions_timeline()
+        if max_status_id:
+    	    replies = api.statuses.mentions_timeline(since_id=max_status_id)
+        else:
+		    replies = api.statuses.mentions_timeline()
         if len(replies) > 0:
             # Strip off the leading @username
             cut_reply = re.compile(r"^@%s:?\s*" % USER, re.IGNORECASE)
@@ -84,40 +84,46 @@ def retweet(initial_status_id=None):
                     break
                 
                 if not is_banned:
-                    reply_text = clean_reply.sub("@", reply['text'])
+                    if use_retweet:
+                        try:
+                            ret = api.statuses.retweet(id=reply['id_str'])
+                        except Exception, e:
+                            print e
+                    else:  
+                        reply_text = clean_reply.sub("@", reply['text'])
+                        if not reply_text.lower().startswith("@%s" % USER.lower()):
+                            continue
                 
-                    if not reply_text.lower().startswith("@%s" % USER.lower()):
-                        continue
-                
-                    clean_tweet = cut_reply.sub("", reply_text).strip()
+                        clean_tweet = cut_reply.sub("", reply_text).strip()
                     
-                    new_tweet = "RT @%s %s" % (retweeting_from, clean_tweet)
+                        new_tweet = "RT @%s %s" % (retweeting_from, clean_tweet)
                     
-                    # If it's over 140 chars, cut it down, adding ellipses
-                    # The "in reply to" will link to the original
-                    if len(new_tweet) > 140:
-                        new_tweet = new_tweet[:140]
+                        # If it's over 140 chars, cut it down, adding ellipses
+                        # The "in reply to" will link to the original
+                        if len(new_tweet) > 140:
+                            new_tweet = new_tweet[:140]
                 
-                        i = 137
+                            i = 137
                 
-                        while i > 0:
-                            # Add the ellipses in a word break
-                            if new_tweet[i] == " ":
-                                new_tweet = "%s..." % new_tweet[:i]
-                                break
-                            else:
-                                new_tweet = new_tweet[:i]
+                            while i > 0:
+                                # Add the ellipses in a word break
+                                if new_tweet[i] == " ":
+                                    new_tweet = "%s..." % new_tweet[:i]
+                                    break
+                                else:
+                                    new_tweet = new_tweet[:i]
                     
-                            i -= 1
+                                i -= 1
             
-                    try:
-                        # Send it.
-                        api.statuses.update(status=new_tweet,in_reply_to_status_id=reply['id_str'])
-                        
+                        try:
+                            # Send it.
+                            api.statuses.update(status=new_tweet,in_reply_to_status_id=reply['id_str'])
+                        except Exception, e:
+                            print e
+
                         cursor.execute("""INSERT INTO retweets_2 (status_id, timestamp) VALUES ('%s', '%s')""" % (reply['id'], datetime.datetime.now()))
                         connection.commit()
-                    except Exception, e:
-                        print e
+                        
         
         cursor.close()
         connection.close()
@@ -178,13 +184,15 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         to_ban = None
         ban_account = None
+        use_retweet = False
         
         for arg in sys.argv:
             if arg.startswith("--ban="):
                 to_ban = arg.split("=")[1]
             elif arg.startswith("--account="):
                 ban_account = arg.split("=")[1]
-        
+            elif arg == '--use-retweet':
+		        use_retweet = True
         if to_ban and ban_account:
             ban(username=to_ban, account=ban_account)
         else:
