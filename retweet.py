@@ -181,11 +181,10 @@ def setup():
 if __name__ == "__main__":
     setup()
     
-    if len(sys.argv) > 1:
-        to_ban = None
-        ban_account = None
-        use_retweet = False
-        
+    to_ban = None
+    ban_account = None
+    use_retweet = None
+    if len(sys.argv) > 1:    
         for arg in sys.argv:
             if arg.startswith("--ban="):
                 to_ban = arg.split("=")[1]
