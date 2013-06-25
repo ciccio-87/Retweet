@@ -1,0 +1,8 @@
+# Insert the twitter accounts screenname in place of "USER"
+USER = ["USER"]
+# This is the account list: it's a list of tuples, one tuple for account
+ACCOUNTS = [("ACCESS_TOKEN","ACCESS_TOKEN_SECRET","CONSUMER_KEY","CONSUMER_SECRET")]
+
+# The full path to the directory you want the sqlite file stored in.
+# Make sure to include a trailing slash.
+DB_DIR = "/full/path/to/sqlite/folder"
