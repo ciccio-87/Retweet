@@ -121,8 +121,8 @@ def retweet(initial_status_id=None):
                         except Exception, e:
                             print e
 
-                        cursor.execute("""INSERT INTO retweets_2 (status_id, timestamp) VALUES ('%s', '%s')""" % (reply['id'], datetime.datetime.now()))
-                        connection.commit()
+                    cursor.execute("""INSERT INTO retweets_2 (status_id, timestamp) VALUES ('%s', '%s')""" % (reply['id'], datetime.datetime.now()))
+                    connection.commit()
                         
         
         cursor.close()
